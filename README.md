@@ -1,6 +1,6 @@
 # DeckNexus
 
-A desktop application built with Electron, React, and TypeScript designed specifically for Magic: The Gathering Commander players. DeckNexus helps you search for commanders, generate AI-powered decklists, and export them to popular platforms.
+A web application built with React and TypeScript designed specifically for Magic: The Gathering Commander players. DeckNexus helps you search for commanders, generate AI-powered decklists, and export them to popular platforms.
 
 ## Project Overview
 
@@ -16,16 +16,15 @@ DeckNexus provides the following core functionality:
 - React 19
 - TypeScript
 - Vite
+- shadCN/ui
+- Tailwind CSS
 
-### Desktop Integration
-- Electron
+### Backend (Coming Soon)
+- API server for AI integration and data processing
 
 ### API & AI Integration
 - Scryfall API (card data)
 - User-selected AI models (OpenAI, Anthropic, etc.)
-
-### Local Storage
-- Plain text files (`.json`, `.txt`)
 
 ### Testing
 - Vitest (unit testing)
@@ -41,19 +40,19 @@ cd decknexus
 
 2. Install dependencies:
 ```bash
-yarn
+yarn install
 ```
 
 ## Development
 
 ### Running the Application
 
-To start the development server with Electron:
+To start the frontend development server:
 ```bash
-yarn electron:start
+yarn dev
 ```
 
-This will start both the Vite development server and launch the Electron app.
+This will start the Vite development server on `http://localhost:5173`.
 
 ### Running Tests
 
@@ -64,33 +63,42 @@ yarn test
 
 To run tests in watch mode:
 ```bash
-yarn test --watch
+yarn test:run
 ```
 
 ### Other Commands
 
-- `yarn dev` - Start Vite development server only
-- `yarn build` - Build the React application
-- `yarn build:electron` - Build for Electron distribution
+- `yarn build` - Build the frontend application
+- `yarn preview` - Preview the built frontend app
 - `yarn lint` - Run ESLint
-- `yarn preview` - Preview the built app
 
 ## Project Structure
 
 ```
 decknexus/
-├── src/                    # React application source
+├── frontend/               # React application
 │   ├── components/         # React components
+│   │   ├── ui/            # shadCN/ui components
+│   │   └── __tests__/     # Component tests
 │   ├── hooks/             # Custom React hooks
-│   ├── utils/             # Utility functions
+│   │   └── __tests__/     # Hook tests
+│   ├── lib/               # Utility functions
+│   ├── services/          # API services
+│   │   ├── ai/           # AI integration services
+│   │   └── __tests__/    # Service tests
 │   ├── types/             # TypeScript type definitions
+│   ├── assets/            # Static assets
+│   ├── public/            # Public assets
 │   ├── App.tsx            # Main App component
 │   ├── main.tsx           # React entry point
-│   └── setupTests.ts      # Test configuration
-├── main.ts                # Electron main process
-├── vite.config.ts         # Vite configuration
-├── tsconfig*.json         # TypeScript configuration
-└── package.json           # Project dependencies
+│   ├── index.html         # HTML template
+│   ├── vite.config.mts    # Vite configuration
+│   ├── tsconfig.json      # TypeScript configuration
+│   └── package.json       # Frontend dependencies
+├── backend/               # Backend API (coming soon)
+│   └── package.json       # Backend dependencies
+├── scripts/               # Build and utility scripts
+└── package.json           # Workspace configuration
 ```
 
 ## Contributing
@@ -109,4 +117,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgments
 
 - Scryfall for providing the comprehensive Magic: The Gathering card database
-- The Electron, React, and TypeScript communities for excellent tooling
+- The React, TypeScript, and Vite communities for excellent tooling
+- shadCN/ui for beautiful, accessible UI components

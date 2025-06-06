@@ -1,0 +1,11 @@
+{
+  "name": "backend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'Backend development server not implemented yet'",
+    "build": "echo 'Backend build not implemented yet'",
+    "start": "echo 'Backend start not implemented yet'"
+  }
+}

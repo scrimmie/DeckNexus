@@ -7,18 +7,12 @@ import { defineConfig } from "vite";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: "./",
-  root: "src/frontend",
-  publicDir: "public",
-  build: {
-    outDir: "../../dist-frontend",
-  },
   server: {
     port: 5173,
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src/frontend"),
+      "@": path.resolve(__dirname, "./"),
     },
   },
   test: {
