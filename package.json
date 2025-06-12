@@ -8,12 +8,16 @@
     "backend"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=frontend",
-    "build": "npm run build --workspace=frontend",
-    "preview": "npm run preview --workspace=frontend",
-    "lint": "npm run lint --workspace=frontend",
-    "test": "npm run test --workspace=frontend",
-    "test:run": "npm run test:run --workspace=frontend"
+    "dev": "concurrently \"yarn workspace backend dev\" \"yarn workspace frontend dev\"",
+    "dev:frontend": "yarn workspace frontend dev",
+    "dev:backend": "yarn workspace backend dev",
+    "build": "yarn workspace backend build && yarn workspace frontend build",
+    "build:frontend": "yarn workspace frontend build",
+    "build:backend": "yarn workspace backend build",
+    "preview": "yarn workspace frontend preview",
+    "lint": "yarn workspace backend lint && yarn workspace frontend lint",
+    "test": "yarn workspace backend test && yarn workspace frontend test",
+    "test:run": "yarn workspace backend test:run && yarn workspace frontend test:run"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
@@ -24,6 +28,7 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.5.1",
+    "concurrently": "^9.1.2",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",

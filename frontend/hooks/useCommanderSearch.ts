@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { scryfallClient } from "@/services/scryfall";
+import { deckNexusApi } from "@/services/api";
 import type { Card } from "@/types/scryfall";
 
 interface UseCommanderSearchResult {
@@ -30,7 +30,7 @@ export function useCommanderSearch(): UseCommanderSearchResult {
     setError(null);
 
     try {
-      const results = await scryfallClient.searchCommandersByName(query);
+      const results = await deckNexusApi.searchCommanders(query);
       setSearchResults(results);
 
       if (results.length === 0) {

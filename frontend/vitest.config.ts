@@ -7,12 +7,12 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "jsdom",
-    setupFiles: ["./src/frontend/setupTests.ts"],
+    setupFiles: ["./setupTests.ts"],
     globals: true,
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src/frontend"),
+      "@": path.resolve(__dirname, "./"),
     },
   },
 });

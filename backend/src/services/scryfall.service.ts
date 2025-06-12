@@ -1,3 +1,4 @@
+import fetch from "node-fetch";
 import type {
   Card,
   ScryfallList,
@@ -5,6 +6,7 @@ import type {
   ScryfallApiResponse,
   SearchParams,
 } from "@/types/scryfall";
+import { ExternalServiceError } from "@/types/api";
 
 // Rate limiting configuration based on Scryfall guidelines
 // https://scryfall.com/docs/api - recommends 50-100ms delay (10 req/sec)
@@ -63,14 +65,14 @@ class RateLimiter {
   }
 }
 
-export class ScryfallClient {
+export class ScryfallService {
   private readonly baseUrl = "https://api.scryfall.com";
   private readonly rateLimiter = new RateLimiter();
-  private readonly userAgent = "DeckNexus/1.0";
+  private readonly userAgent = "DeckNexus-API/1.0";
 
   private async makeRequest<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: any = {}
   ): Promise<ScryfallApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
 
@@ -87,7 +89,7 @@ export class ScryfallClient {
 
   private async requestWithRetry<T>(
     url: string,
-    options: RequestInit,
+    options: any,
     retryCount = 0
   ): Promise<ScryfallApiResponse<T>> {
     try {
@@ -101,20 +103,28 @@ export class ScryfallClient {
           await this.delay(retryDelay);
           return this.requestWithRetry<T>(url, options, retryCount + 1);
         }
-        throw new Error(`Rate limit exceeded after ${MAX_RETRIES} retries`);
+        throw new ExternalServiceError(
+          "Scryfall",
+          `Rate limit exceeded after ${MAX_RETRIES} retries`
+        );
       }
 
       // Handle other HTTP errors
       if (!response.ok) {
         const error = data as ScryfallError;
-        throw new Error(
-          `Scryfall API error: ${error.details || response.statusText}`
+        throw new ExternalServiceError(
+          "Scryfall",
+          error.details || response.statusText
         );
       }
 
       return data as T;
     } catch (error) {
-      if (error instanceof TypeError && error.message.includes("fetch")) {
+      if (error instanceof ExternalServiceError) {
+        throw error;
+      }
+
+      if (error instanceof Error && error.message.includes("fetch")) {
         // Network error - retry if we haven't exceeded max retries
         if (retryCount < MAX_RETRIES) {
           const retryDelay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount);
@@ -122,7 +132,7 @@ export class ScryfallClient {
           return this.requestWithRetry<T>(url, options, retryCount + 1);
         }
       }
-      throw error;
+      throw new ExternalServiceError("Scryfall", "Network error");
     }
   }
 
@@ -142,26 +152,29 @@ export class ScryfallClient {
   }
 
   /**
-   * Search for cards using Scryfall's search syntax
-   * https://scryfall.com/docs/api/cards/search
+   * Get a card by its Scryfall ID
    */
-  private async searchCards(params: SearchParams): Promise<Card[]> {
-    const searchParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined) {
-        searchParams.append(key, String(value));
-      }
-    });
-
-    const response = await this.makeRequest<ScryfallList<Card>>(
-      `/cards/search?${searchParams}`
-    );
+  async getCardById(id: string): Promise<Card> {
+    const response = await this.makeRequest<Card>(`/cards/${id}`);
 
     if (this.isError(response)) {
-      throw new Error(response.details);
+      throw new ExternalServiceError("Scryfall", response.details);
     }
 
-    return response.data;
+    return response;
+  }
+
+  /**
+   * Get a random card
+   */
+  async getRandomCard(): Promise<Card> {
+    const response = await this.makeRequest<Card>("/cards/random");
+
+    if (this.isError(response)) {
+      throw new ExternalServiceError("Scryfall", response.details);
+    }
+
+    return response;
   }
 
   /**
@@ -204,30 +217,129 @@ export class ScryfallClient {
   }
 
   /**
-   * Search for commanders by name using fuzzy matching
+   * Build a Scryfall query from search parameters
    */
-  async searchCommandersByName(name: string): Promise<Card[]> {
-    if (!name.trim()) return [];
+  private buildSearchQuery(params: {
+    name?: string;
+    type?: string;
+    colors?: string;
+    cmc?: string;
+    commander?: boolean;
+  }): string {
+    const queryParts: string[] = [];
+
+    if (params.name) {
+      queryParts.push(`name:"${params.name}"`);
+    }
+
+    if (params.type) {
+      queryParts.push(`type:${params.type}`);
+    }
+
+    if (params.colors) {
+      queryParts.push(`colors:${params.colors}`);
+    }
+
+    if (params.cmc) {
+      queryParts.push(`cmc:${params.cmc}`);
+    }
+
+    if (params.commander) {
+      queryParts.push(
+        '(type:legendary type:creature OR (type:planeswalker oracle:"can be your commander"))'
+      );
+    }
+
+    return queryParts.join(" ");
+  }
+
+  /**
+   * Search for cards with various filters
+   */
+  async searchCards(params: {
+    name?: string;
+    type?: string;
+    colors?: string;
+    cmc?: string;
+    commander?: boolean;
+    page?: number;
+    limit?: number;
+  }): Promise<{ cards: Card[]; hasMore: boolean; total?: number }> {
+    if (
+      !params.name &&
+      !params.type &&
+      !params.colors &&
+      !params.cmc &&
+      !params.commander
+    ) {
+      throw new Error("At least one search parameter is required");
+    }
 
     try {
-      // Search for legendary creatures and planeswalkers that can be commanders
-      // Using fuzzy search and commander-specific filters
-      const query = `name:${name.trim()} (type:legendary type:creature OR (type:planeswalker oracle:"can be your commander"))`;
+      const query = this.buildSearchQuery(params);
 
-      const cards = await this.searchCards({
+      const searchParams: SearchParams = {
         q: query,
         unique: "cards",
         order: "name",
-      });
+        page: params.page || 1,
+      };
 
-      // Filter to only valid commanders and sort by name similarity
-      const validCommanders = cards.filter((card) =>
-        this.isValidCommander(card)
+      const response = await this.makeRequest<ScryfallList<Card>>(
+        `/cards/search?${new URLSearchParams(
+          Object.entries(searchParams).map(([k, v]) => [k, String(v)])
+        )}`
       );
+
+      if (this.isError(response)) {
+        throw new ExternalServiceError("Scryfall", response.details);
+      }
+
+      // Filter for commanders if requested
+      let cards = response.data;
+      if (params.commander) {
+        cards = cards.filter((card) => this.isValidCommander(card));
+      }
+
+      // Apply pagination if limit is specified
+      const limit = params.limit || cards.length;
+      const startIndex = ((params.page || 1) - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedCards = cards.slice(startIndex, endIndex);
+
+      return {
+        cards: paginatedCards,
+        hasMore: response.has_more || endIndex < cards.length,
+        total: response.total_cards,
+      };
+    } catch (error) {
+      if (error instanceof ExternalServiceError) {
+        throw error;
+      }
+      throw new ExternalServiceError(
+        "Scryfall",
+        "Failed to search for cards. Please try again."
+      );
+    }
+  }
+
+  /**
+   * Search for commanders by name using fuzzy matching
+   */
+  async searchCommanders(name: string): Promise<Card[]> {
+    if (!name.trim()) {
+      return [];
+    }
+
+    try {
+      const result = await this.searchCards({
+        name: name.trim(),
+        commander: true,
+      });
 
       // Sort by name similarity (exact matches first, then partial matches)
       const searchTerm = name.toLowerCase().trim();
-      return validCommanders.sort((a, b) => {
+      return result.cards.sort((a, b) => {
         const aName = a.name.toLowerCase();
         const bName = b.name.toLowerCase();
 
@@ -245,11 +357,57 @@ export class ScryfallClient {
         return aName.localeCompare(bName);
       });
     } catch (error) {
-      console.error("Error searching commanders:", error);
-      throw new Error("Failed to search for commanders. Please try again.");
+      if (error instanceof ExternalServiceError) {
+        throw error;
+      }
+      throw new ExternalServiceError(
+        "Scryfall",
+        "Failed to search for commanders. Please try again."
+      );
+    }
+  }
+
+  /**
+   * Raw search using a Scryfall query string
+   */
+  async rawSearch(
+    query: string,
+    page: number = 1
+  ): Promise<{ cards: Card[]; hasMore: boolean; total?: number }> {
+    try {
+      const searchParams: SearchParams = {
+        q: query,
+        unique: "cards",
+        order: "name",
+        page,
+      };
+
+      const response = await this.makeRequest<ScryfallList<Card>>(
+        `/cards/search?${new URLSearchParams(
+          Object.entries(searchParams).map(([k, v]) => [k, String(v)])
+        )}`
+      );
+
+      if (this.isError(response)) {
+        throw new ExternalServiceError("Scryfall", response.details);
+      }
+
+      return {
+        cards: response.data,
+        hasMore: response.has_more || false,
+        total: response.total_cards,
+      };
+    } catch (error) {
+      if (error instanceof ExternalServiceError) {
+        throw error;
+      }
+      throw new ExternalServiceError(
+        "Scryfall",
+        "Failed to search for cards. Please try again."
+      );
     }
   }
 }
 
 // Export singleton instance
-export const scryfallClient = new ScryfallClient();
+export const scryfallService = new ScryfallService();

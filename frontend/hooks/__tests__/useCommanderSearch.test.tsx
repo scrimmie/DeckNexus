@@ -1,23 +1,23 @@
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { useCommanderSearch } from "../useCommanderSearch";
-import type { Card } from "@/types/scryfall";
+import type { Card } from "../../types/scryfall";
 
-// Mock the Scryfall client
-vi.mock("@/services/scryfall", () => ({
-  scryfallClient: {
-    searchCommandersByName: vi.fn(),
-    getCardByName: vi.fn(),
-    isValidCommander: vi.fn(),
+// Mock the DeckNexus API
+vi.mock("@/services/api", () => ({
+  deckNexusApi: {
+    searchCommanders: vi.fn(),
+    searchCards: vi.fn(),
+    getCardById: vi.fn(),
+    getRandomCard: vi.fn(),
+    healthCheck: vi.fn(),
   },
 }));
 
 // Import after mocking
-import { scryfallClient } from "@/services/scryfall";
+import { deckNexusApi } from "@/services/api";
 
-const mockSearchCommandersByName = vi.mocked(
-  scryfallClient.searchCommandersByName
-);
+const mockSearchCommanders = vi.mocked(deckNexusApi.searchCommanders);
 
 describe("useCommanderSearch", () => {
   beforeEach(() => {
@@ -49,13 +49,6 @@ describe("useCommanderSearch", () => {
         set: "test",
         set_name: "Test Set",
         set_type: "core",
-        set_uri: "https://api.scryfall.com/sets/test",
-        set_search_uri:
-          "https://api.scryfall.com/cards/search?order=set&q=e%3Atest&unique=prints",
-        scryfall_set_uri: "https://scryfall.com/sets/test",
-        rulings_uri: "https://api.scryfall.com/cards/test-id/rulings",
-        prints_search_uri:
-          "https://api.scryfall.com/cards/search?order=released&q=oracleid%3Atest&unique=prints",
         collector_number: "1",
         digital: false,
         rarity: "rare",
@@ -63,21 +56,17 @@ describe("useCommanderSearch", () => {
         frame: "2015",
         full_art: false,
         textless: false,
-        booster: true,
-        story_spotlight: false,
         games: ["paper"],
         reserved: false,
         foil: false,
         nonfoil: true,
-        finishes: ["nonfoil"],
         oversized: false,
         promo: false,
         reprint: false,
-        variation: false,
       },
     ];
 
-    mockSearchCommandersByName.mockResolvedValue(mockCards);
+    mockSearchCommanders.mockResolvedValue(mockCards);
 
     const { result } = renderHook(() => useCommanderSearch());
 
@@ -91,11 +80,11 @@ describe("useCommanderSearch", () => {
       expect(result.current.error).toBeNull();
     });
 
-    expect(mockSearchCommandersByName).toHaveBeenCalledWith("Atraxa");
+    expect(mockSearchCommanders).toHaveBeenCalledWith("Atraxa");
   });
 
   it("should handle search errors gracefully", async () => {
-    mockSearchCommandersByName.mockRejectedValue(new Error("Network error"));
+    mockSearchCommanders.mockRejectedValue(new Error("Network error"));
 
     const { result } = renderHook(() => useCommanderSearch());
 
@@ -111,7 +100,7 @@ describe("useCommanderSearch", () => {
   });
 
   it("should show error message when no results found", async () => {
-    mockSearchCommandersByName.mockResolvedValue([]);
+    mockSearchCommanders.mockResolvedValue([]);
 
     const { result } = renderHook(() => useCommanderSearch());
 
@@ -136,7 +125,7 @@ describe("useCommanderSearch", () => {
 
     expect(result.current.searchResults).toEqual([]);
     expect(result.current.error).toBeNull();
-    expect(mockSearchCommandersByName).not.toHaveBeenCalled();
+    expect(mockSearchCommanders).not.toHaveBeenCalled();
   });
 
   it("should select a commander", async () => {
@@ -156,13 +145,6 @@ describe("useCommanderSearch", () => {
       set: "test",
       set_name: "Test Set",
       set_type: "core",
-      set_uri: "https://api.scryfall.com/sets/test",
-      set_search_uri:
-        "https://api.scryfall.com/cards/search?order=set&q=e%3Atest&unique=prints",
-      scryfall_set_uri: "https://scryfall.com/sets/test",
-      rulings_uri: "https://api.scryfall.com/cards/test-id/rulings",
-      prints_search_uri:
-        "https://api.scryfall.com/cards/search?order=released&q=oracleid%3Atest&unique=prints",
       collector_number: "1",
       digital: false,
       rarity: "rare",
@@ -170,17 +152,13 @@ describe("useCommanderSearch", () => {
       frame: "2015",
       full_art: false,
       textless: false,
-      booster: true,
-      story_spotlight: false,
       games: ["paper"],
       reserved: false,
       foil: false,
       nonfoil: true,
-      finishes: ["nonfoil"],
       oversized: false,
       promo: false,
       reprint: false,
-      variation: false,
     };
 
     const { result } = renderHook(() => useCommanderSearch());
@@ -198,24 +176,16 @@ describe("useCommanderSearch", () => {
     const mockCard: Card = {
       id: "test-id",
       object: "card",
-      name: "Atraxa, Praetors' Voice",
+      name: "Test Commander",
       lang: "en",
       released_at: "2023-01-01",
       uri: "https://api.scryfall.com/cards/test-id",
-      scryfall_uri: "https://scryfall.com/card/test/1/atraxa",
+      scryfall_uri: "https://scryfall.com/card/test/1",
       layout: "normal",
-      type_line: "Legendary Creature — Phyrexian Angel Horror",
       legalities: { commander: "legal" },
       set: "test",
       set_name: "Test Set",
       set_type: "core",
-      set_uri: "https://api.scryfall.com/sets/test",
-      set_search_uri:
-        "https://api.scryfall.com/cards/search?order=set&q=e%3Atest&unique=prints",
-      scryfall_set_uri: "https://scryfall.com/sets/test",
-      rulings_uri: "https://api.scryfall.com/cards/test-id/rulings",
-      prints_search_uri:
-        "https://api.scryfall.com/cards/search?order=released&q=oracleid%3Atest&unique=prints",
       collector_number: "1",
       digital: false,
       rarity: "rare",
@@ -223,17 +193,13 @@ describe("useCommanderSearch", () => {
       frame: "2015",
       full_art: false,
       textless: false,
-      booster: true,
-      story_spotlight: false,
       games: ["paper"],
       reserved: false,
       foil: false,
       nonfoil: true,
-      finishes: ["nonfoil"],
       oversized: false,
       promo: false,
       reprint: false,
-      variation: false,
     };
 
     const { result } = renderHook(() => useCommanderSearch());
@@ -245,7 +211,7 @@ describe("useCommanderSearch", () => {
 
     expect(result.current.selectedCard).toEqual(mockCard);
 
-    // Then clear the selection
+    // Then clear selection
     act(() => {
       result.current.clearSelection();
     });
@@ -254,29 +220,21 @@ describe("useCommanderSearch", () => {
     expect(result.current.error).toBeNull();
   });
 
-  it("should clear search results", async () => {
+  it("should clear results", async () => {
     const mockCards: Card[] = [
       {
         id: "test-id",
         object: "card",
-        name: "Atraxa, Praetors' Voice",
+        name: "Test Commander",
         lang: "en",
         released_at: "2023-01-01",
         uri: "https://api.scryfall.com/cards/test-id",
-        scryfall_uri: "https://scryfall.com/card/test/1/atraxa",
+        scryfall_uri: "https://scryfall.com/card/test/1",
         layout: "normal",
-        type_line: "Legendary Creature — Phyrexian Angel Horror",
         legalities: { commander: "legal" },
         set: "test",
         set_name: "Test Set",
         set_type: "core",
-        set_uri: "https://api.scryfall.com/sets/test",
-        set_search_uri:
-          "https://api.scryfall.com/cards/search?order=set&q=e%3Atest&unique=prints",
-        scryfall_set_uri: "https://scryfall.com/sets/test",
-        rulings_uri: "https://api.scryfall.com/cards/test-id/rulings",
-        prints_search_uri:
-          "https://api.scryfall.com/cards/search?order=released&q=oracleid%3Atest&unique=prints",
         collector_number: "1",
         digital: false,
         rarity: "rare",
@@ -284,34 +242,30 @@ describe("useCommanderSearch", () => {
         frame: "2015",
         full_art: false,
         textless: false,
-        booster: true,
-        story_spotlight: false,
         games: ["paper"],
         reserved: false,
         foil: false,
         nonfoil: true,
-        finishes: ["nonfoil"],
         oversized: false,
         promo: false,
         reprint: false,
-        variation: false,
       },
     ];
 
-    mockSearchCommandersByName.mockResolvedValue(mockCards);
+    mockSearchCommanders.mockResolvedValue(mockCards);
 
     const { result } = renderHook(() => useCommanderSearch());
 
-    // First perform a search
+    // First search for commanders
     await act(async () => {
-      await result.current.searchCommanders("Atraxa");
+      await result.current.searchCommanders("test");
     });
 
     await waitFor(() => {
       expect(result.current.searchResults).toEqual(mockCards);
     });
 
-    // Then clear the results
+    // Then clear results
     act(() => {
       result.current.clearResults();
     });
@@ -320,36 +274,31 @@ describe("useCommanderSearch", () => {
     expect(result.current.error).toBeNull();
   });
 
-  it("should handle loading states correctly", async () => {
-    // Mock a slow response
-    let resolveSearch: (value: Card[]) => void;
+  it("should set loading state during search", async () => {
+    let resolvePromise: (value: Card[]) => void;
     const searchPromise = new Promise<Card[]>((resolve) => {
-      resolveSearch = resolve;
+      resolvePromise = resolve;
     });
 
-    mockSearchCommandersByName.mockReturnValue(searchPromise);
+    mockSearchCommanders.mockReturnValue(searchPromise);
 
     const { result } = renderHook(() => useCommanderSearch());
 
-    // Should not be loading initially
-    expect(result.current.isLoading).toBe(false);
-
-    // Start search without waiting for it to complete
+    // Start the search
     act(() => {
       result.current.searchCommanders("test");
     });
 
-    // Should be loading now
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(true);
+    // Should be loading
+    expect(result.current.isLoading).toBe(true);
+
+    // Resolve the promise
+    await act(async () => {
+      resolvePromise!([]);
+      await searchPromise;
     });
 
-    // Resolve the search
-    act(() => {
-      resolveSearch!([]);
-    });
-
-    // Should finish loading
+    // Should no longer be loading
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });

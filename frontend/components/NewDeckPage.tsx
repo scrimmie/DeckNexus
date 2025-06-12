@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Wand2, Info } from "lucide-react";
 import { CommanderSearchBar } from "./CommanderSearchBar";
 import { CommanderSearchResults } from "./CommanderSearchResults";
 import { CommanderCard } from "./CommanderCard";
+import { DeckBuilderModal } from "./DeckBuilderModal";
 import { useCommanderSearch } from "@/hooks/useCommanderSearch";
 
 export function NewDeckPage() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const {
     searchResults,
     isLoading,
@@ -114,10 +118,11 @@ export function NewDeckPage() {
               </p>
               <div className="flex justify-center space-x-4">
                 <button
-                  className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50"
-                  disabled
+                  className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                  onClick={() => setIsModalOpen(true)}
                 >
-                  Generate Deck with AI (Coming Soon)
+                  <Wand2 className="h-4 w-4" />
+                  Generate Deck with AI
                 </button>
                 <button
                   className="px-6 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors disabled:opacity-50"
@@ -129,6 +134,15 @@ export function NewDeckPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* AI Deck Builder Modal */}
+      {selectedCard && (
+        <DeckBuilderModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          commander={selectedCard}
+        />
       )}
     </div>
   );
